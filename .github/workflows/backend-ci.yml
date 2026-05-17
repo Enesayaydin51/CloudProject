@@ -1,0 +1,93 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'gym-app-backend/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'gym-app-backend/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-test-release:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: gym_app_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: gym_app_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ci-test-jwt-secret
+      REDIS_ENABLED: 'true'
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: gym-app-backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: gym-app-backend
+        run: npm ci
+
+      - name: Validate config (III)
+        working-directory: gym-app-backend
+        run: node -e "const c=require('./src/config/env'); console.log('env ok', c.nodeEnv)"
+
+      - name: Run admin migrations (XII)
+        working-directory: gym-app-backend
+        run: npm run migrate
+
+      - name: Unit tests
+        working-directory: gym-app-backend
+        run: npm test
+
+      - name: Build production image (V)
+        run: docker build -t gym-app-backend:ci ./gym-app-backend
+
+      - name: Health check running process (IX, VII)
+        working-directory: gym-app-backend
+        run: |
+          npm start &
+          echo $! > /tmp/server.pid
+          sleep 6
+          curl -sf http://localhost:3000/health
+          kill $(cat /tmp/server.pid) || true

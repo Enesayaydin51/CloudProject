@@ -1,0 +1,208 @@
+# X — Dev/prod parity: same services as docker-compose.yml, production-oriented settings
+
+# Usage: docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+
+
+services:
+
+  redis:
+
+    image: redis:7-alpine
+
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+    networks:
+
+      - gym-app-network
+
+    healthcheck:
+
+      test: ['CMD', 'redis-cli', 'ping']
+
+      interval: 10s
+
+      timeout: 3s
+
+      retries: 5
+
+
+
+  postgres:
+
+    image: postgres:15-alpine
+
+    restart: unless-stopped
+
+    environment:
+
+      POSTGRES_DB: ${DB_NAME:-gym_app_db}
+
+      POSTGRES_USER: ${DB_USER:-postgres}
+
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+
+    volumes:
+
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+
+      - gym-app-network
+
+    healthcheck:
+
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
+
+      interval: 10s
+
+      timeout: 5s
+
+      retries: 5
+
+
+
+  backend-migrate:
+
+    image: cloud-gym-app-backend-migrate:latest
+
+    build:
+
+      context: ./gym-app-backend
+
+      dockerfile: Dockerfile
+
+    restart: 'no'
+
+    env_file:
+
+      - .env
+
+    environment:
+
+      NODE_ENV: production
+
+      SKIP_DOTENV: '1'
+
+      DB_HOST: postgres
+
+      DB_PORT: 5432
+
+      DB_NAME: ${DB_NAME:-gym_app_db}
+
+      DB_USER: ${DB_USER:-postgres}
+
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required in production}
+
+      LOG_LEVEL: info
+
+    command: ['node', 'scripts/migrate.js']
+
+    depends_on:
+
+      postgres:
+
+        condition: service_healthy
+
+    networks:
+
+      - gym-app-network
+
+
+
+  backend:
+
+    image: cloud-gym-app-backend:latest
+
+    build:
+
+      context: ./gym-app-backend
+
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+
+      - .env
+
+    environment:
+
+      NODE_ENV: production
+
+      SKIP_DOTENV: '1'
+
+      PORT: 3000
+
+      DB_HOST: postgres
+
+      DB_PORT: 5432
+
+      DB_NAME: ${DB_NAME:-gym_app_db}
+
+      DB_USER: ${DB_USER:-postgres}
+
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required in production}
+
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+      REDIS_ENABLED: 'true'
+
+      REDIS_HOST: redis
+
+      REDIS_PORT: 6379
+
+      LOG_LEVEL: info
+
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+    ports:
+
+      - '3000:3000'
+
+    depends_on:
+
+      backend-migrate:
+
+        condition: service_completed_successfully
+
+      postgres:
+
+        condition: service_healthy
+
+      redis:
+
+        condition: service_healthy
+
+    networks:
+
+      - gym-app-network
+
+
+
+volumes:
+
+  postgres_data:
+
+
+
+networks:
+
+  gym-app-network:
+
+    name: cloud-gym-app-network
+
+    driver: bridge
+

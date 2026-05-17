@@ -1,0 +1,244 @@
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloud-gym-app-redis
+
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+    ports:
+
+      - "6379:6379"
+
+    volumes:
+
+      - redis_data:/data
+
+    networks:
+
+      - gym-app-network
+
+    healthcheck:
+
+      test: ["CMD", "redis-cli", "ping"]
+
+      interval: 10s
+
+      timeout: 3s
+
+      retries: 5
+
+
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloud-gym-app-postgres
+
+    restart: unless-stopped
+
+    environment:
+
+      POSTGRES_DB: gym_app_db
+
+      POSTGRES_USER: postgres
+
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+
+      - "5432:5432"
+
+    volumes:
+
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+
+      - gym-app-network
+
+    healthcheck:
+
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+
+      interval: 10s
+
+      timeout: 5s
+
+      retries: 5
+
+
+
+  # XII — Admin: release (migrate) before web process
+
+  backend-migrate:
+    image: cloud-gym-app-backend-migrate:latest
+    build:
+      context: ./gym-app-backend
+      dockerfile: Dockerfile.dev
+    container_name: cloud-gym-app-backend-migrate
+
+    restart: "no"
+
+    env_file:
+
+      - .env
+
+    environment:
+
+      NODE_ENV: development
+
+      DB_HOST: postgres
+
+      DB_PORT: 5432
+
+      DB_NAME: gym_app_db
+
+      DB_USER: postgres
+
+      DB_PASSWORD: postgres
+
+      LOG_LEVEL: info
+
+    command: ["npm", "run", "migrate"]
+
+    depends_on:
+
+      postgres:
+
+        condition: service_healthy
+
+    networks:
+
+      - gym-app-network
+
+    volumes:
+
+      - ./gym-app-backend:/app
+
+      - /app/node_modules
+
+
+
+  backend:
+    image: cloud-gym-app-backend:latest
+    build:
+      context: ./gym-app-backend
+      dockerfile: Dockerfile.dev
+    container_name: cloud-gym-app-backend
+
+    restart: unless-stopped
+
+    env_file:
+
+      - .env
+
+    environment:
+
+      NODE_ENV: development
+
+      PORT: 3000
+
+      DB_HOST: postgres
+
+      DB_PORT: 5432
+
+      DB_NAME: gym_app_db
+
+      DB_USER: postgres
+
+      DB_PASSWORD: postgres
+
+      JWT_SECRET: ${JWT_SECRET:-dev-docker-compose-jwt-secret}
+
+      JWT_EXPIRES_IN: 7d
+
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+      REDIS_ENABLED: true
+
+      REDIS_HOST: redis
+
+      REDIS_PORT: 6379
+
+      REDIS_CONNECT_TIMEOUT_MS: 5000
+
+      LOG_LEVEL: debug
+
+      PUBLIC_API_URL: http://localhost:3000
+
+      WEB_CONCURRENCY: 1
+
+    ports:
+
+      - "3000:3000"
+
+    depends_on:
+
+      backend-migrate:
+
+        condition: service_completed_successfully
+
+      postgres:
+
+        condition: service_healthy
+
+      redis:
+
+        condition: service_healthy
+
+    networks:
+
+      - gym-app-network
+
+    volumes:
+
+      - ./gym-app-backend:/app
+
+      - /app/node_modules
+
+
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cloud-gym-app-pgadmin
+
+    restart: unless-stopped
+
+    environment:
+
+      PGADMIN_DEFAULT_EMAIL: admin@gymapp.com
+
+      PGADMIN_DEFAULT_PASSWORD: admin123
+
+    ports:
+
+      - "5050:80"
+
+    depends_on:
+
+      - postgres
+
+    networks:
+
+      - gym-app-network
+
+
+
+volumes:
+
+  postgres_data:
+
+  redis_data:
+
+
+
+networks:
+
+  gym-app-network:
+
+    name: cloud-gym-app-network
+
+    driver: bridge
+

@@ -500,5 +500,4 @@ MIT
 ## Notlar
 
 - Bu README, **12-Factor uyumlu backend** sürümünü anlatır.
-- Bitirme projesi için eski sürüm Git geçmişinden geri alınabilir.
 - Production kullanımında güçlü `JWT_SECRET`, HTTPS ve izleme (monitoring) eklenmesi önerilir.

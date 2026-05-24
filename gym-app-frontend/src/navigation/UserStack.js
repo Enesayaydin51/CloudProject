@@ -8,6 +8,7 @@ import {
   StepPage,
   ExercisesDetailPage,
   AchievementsPage,
+  AboutPage,
 } from "../screens";
 
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -178,6 +179,7 @@ const UserStack = () => {
       <Stack.Screen name="UserTabs" component={UserTabs} />
       <Stack.Screen name="ExercisesDetailPage" component={ExercisesDetailPage} />
       <Stack.Screen name="AchievementsPage" component={AchievementsPage} />
+      <Stack.Screen name="AboutPage" component={AboutPage} />
     </Stack.Navigator>
   );
 };

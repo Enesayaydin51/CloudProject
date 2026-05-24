@@ -550,6 +550,29 @@ const ProfilePage = ({ navigation }) => {
                 </Pressable>
             </View>
 
+
+          {/* ℹ️ HAKKINDA BUTONU */}
+                <Pressable
+                    style={({pressed}) => [styles.progressPreviewCard, COMMON_STYLES.shadowLight, {opacity: pressed ? 0.9 : 1, marginTop: 12}]}
+                    onPress={() => navigation.navigate("AboutPage")}
+                >
+                    <LinearGradient colors={[COLORS.purple, COLORS.primary]} start={{x:0, y:0}} end={{x:1, y:0}} style={styles.progressGradient}>
+                        <View style={styles.progressLeft}>
+                            <View style={styles.miniLevelBadge}>
+                                <Ionicons name="information-circle" size={20} color={COLORS.white} />
+                            </View>
+                            <View>
+                                <Text style={styles.progressTitle}>{t("profile.about") || "Hakkında"}</Text>
+                                <Text style={styles.progressSub}>Uygulama bilgileri ve geliştiriciler</Text>
+                            </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={COLORS.white} />
+                    </LinearGradient>
+                </Pressable>
+
+
+
+
             {/* 🎛️ 3'LÜ FİZİKSEL BİLGİ SATIRI */}
             <View style={styles.metricsRow}>
                 <View style={[styles.metricCard, COMMON_STYLES.shadowLight]}>

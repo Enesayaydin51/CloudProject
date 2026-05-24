@@ -7,6 +7,7 @@ import ExercisesPage from "./ExercisesPage";
 import StepPage from "./Steppage";
 import ExercisesDetailPage from "./ExercisesDetailPage";
 import AchievementsPage from "./AchievementsPage";
+import AboutPage from "./AboutPage";
 
 export {
     LoginPage,      
@@ -17,5 +18,6 @@ export {
     ExercisesPage,
     StepPage,
     ExercisesDetailPage,
-    AchievementsPage
+    AchievementsPage,
+    AboutPage,
 }

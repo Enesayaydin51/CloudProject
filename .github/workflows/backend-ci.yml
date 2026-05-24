@@ -91,3 +91,14 @@ jobs:
           sleep 6
           curl -sf http://localhost:3000/health
           kill $(cat /tmp/server.pid) || true
+
+      - name: Security audit
+        working-directory: gym-app-backend
+        run: npm audit --audit-level=high --omit=dev
+        continue-on-error: true
+
+      - name: Check .env.example files are committed
+        run: |
+          test -f .env.example || (echo ".env.example missing from repo root" && exit 1)
+          test -f gym-app-backend/.env.example || (echo "gym-app-backend/.env.example missing" && exit 1)
+          echo "All .env.example files present ✓"
